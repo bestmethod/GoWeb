@@ -1,0 +1,47 @@
+{{ define "register" }}
+
+{{ template "header" . }}
+<center>
+    <form method="post" action="/register">
+        <table border="0">
+            {{if .RegisterFailExists}}
+            <tr>
+                <td>
+                    <font color="red">ERROR: User already exists!</font>
+                </td>
+            </tr>
+            {{end}}
+            {{if .RegisterFailMissing}}
+            <tr>
+                <td>
+                    <font color="red">ERROR: Username and Password are required!</font>
+                </td>
+            </tr>
+            {{end}}
+            <tr>
+                <td>
+                    <input type="text" name="username" value="{{.Username}}">
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <input type="password" name="password" value="{{.Password}}">
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <input type="Submit" name="Register" value="Register">
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <a href="/login" target="_self">Already got an account? Click here to go back to login page</a>
+                </td>
+            </tr>
+        </table>
+    </form>
+</center>
+
+{{ template "footer" . }}
+
+{{ end }}
