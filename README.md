@@ -1,7 +1,7 @@
 # GoWeb
 Website Templating Engine
 
-Stuff you should never need to edit:
+### Stuff you should never need to edit:
 
 configurator/ -> automatically loads and parses configuration file
 
@@ -11,8 +11,10 @@ rpcDb/ -> helper function to connect to DB, for calls we use meddler anyways
 
 Webserver.go -> main file
 
+----
 
-Helper stuff:
+
+### Helper stuff:
 
 config_file.txt -> example configuration file
 
@@ -22,8 +24,10 @@ populateDb.sql -> sql schema file
 
 requirements.sh -> requirements file, showing all dependencies as go get commands
 
+----
 
-This is where you develop:
+
+### This is where you develop:
 
 templates/ -> all http templates that get parsed
 
@@ -37,8 +41,10 @@ rpcListener/ -> this is where all the actual magic happens
 
  index/login/register -> the 3 example pages created, so you can see how index can redirect to login, register can work, etc
 
+----
 
-To develop pages:
+
+### To develop pages:
 
 1. add function name to BUILTINDispatcher.go
 
@@ -48,8 +54,10 @@ To develop pages:
 
 4. enjoy
 
+----
 
-To run:
+
+### To run:
 
 If you want to see a LOT of debug lines, use --early-debug in parameters.
 
@@ -57,21 +65,25 @@ DO provide configuration file name in parameter, otherwise it won't start.
 
 By default, config file will make use of exampleDb.sqlite3, so you can see it in action.
 
+----
 
-Clean:
+
+### Clean:
 
 It's best to put any logging lines in BUILTINLogMessage or create a LogMessages.go in rpcListener/ and put them there.
 
 See the rest of code for example. This is keeping text out of code. CLEAN!
 
+----
 
-Helper variables:
+
+### Helper variables:
 
 I will not describe it here. See index/login/register go files. They will describe it in full.
 
 ----
 
-Roadmap (what it does not do, that I wish it did):
+### Roadmap (what it does not do, that I wish it did):
 
 * session handler needs to allow for choice of backends, use caching DBs like aerospike with expiry builtin (no SessionCleaner)
 
