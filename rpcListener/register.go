@@ -53,19 +53,17 @@ func register(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	t := template.New("register")
 	t, _ = t.ParseFiles("templates/register.html")
 	if err != nil {
-		fmt.Println("Error1:", err)
-		return
+		logger.Error(fmt.Sprintf("There was an error serving page template: %s",err))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	t, _ = t.ParseGlob("templates/common/*")
+	t, err = t.ParseGlob("templates/common/*")
 	if err != nil {
-		fmt.Println("Error2:", err)
-		return
+		logger.Error(fmt.Sprintf("There was an error serving common template: %s",err))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	err = t.Execute(w, &model)
 	if err != nil {
-		fmt.Println("Error3:", err)
-	}
-	if err != nil {
+		logger.Error(fmt.Sprintf("There was an error executing templates: %s",err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
