@@ -30,21 +30,19 @@ func index(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	model.Subtitle = " - You are logged in!"
 	var err error
 	t := template.New("index")
-	t, _ = t.ParseFiles("templates/index.html")
+	t, err = t.ParseFiles("templates/index.html")
 	if err != nil {
-		fmt.Println("Error1:", err)
-		return
+		logger.Error(fmt.Sprintf("There was an error serving page template: %s",err))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-	t, _ = t.ParseGlob("templates/common/*")
+	t, err = t.ParseGlob("templates/common/*")
 	if err != nil {
-		fmt.Println("Error2:", err)
-		return
+		logger.Error(fmt.Sprintf("There was an error serving common template: %s",err))
+		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 	err = t.Execute(w, &model)
 	if err != nil {
-		fmt.Println("Error3:", err)
-	}
-	if err != nil {
+		logger.Error(fmt.Sprintf("There was an error executing templates: %s",err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
 }
