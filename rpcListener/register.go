@@ -51,7 +51,7 @@ func register(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
 	}
 	var err error
 	t := template.New("register")
-	t, _ = t.ParseFiles("templates/register.html")
+	t, err = t.ParseFiles("templates/register.html")
 	if err != nil {
 		logger.Error(fmt.Sprintf("There was an error serving page template: %s",err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
