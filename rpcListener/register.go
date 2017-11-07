@@ -79,7 +79,7 @@ func runRegister(user string, pass string, Session *SessionStruct) bool {
 		logger.Error(fmt.Sprintf("Could not register user in the DB: %s\n", err))
 		res = false
 	} else if err != nil {
-		logger.Debug("User does not exist, creating")
+		//user does not exist, creating
 
 		User.Username = user
 		User.Password = pass

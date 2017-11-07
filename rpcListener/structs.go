@@ -6,7 +6,7 @@ import (
 	"database/sql"
 )
 
-//webserver basic struct with configs
+//BUILTIN webserver basic struct with configs
 type WebServer struct {
 	Logger  *multiLogger.LogHandler
 	RpcConf *configurator.RpcConf

@@ -29,7 +29,7 @@ type DbConf struct {
 	DbName            string
 	UseTLS            bool
 	TLSSkipVerify     bool
-	ssl_ca            string
+	Ssl_ca            string
 	ListenerConfID    int
 	LoadLoggersFromDB bool
 }
@@ -46,6 +46,7 @@ type RpcConf struct {
 	SessionCleanerRun             bool
 	SessionCleanerIntervalSeconds int
 	RpcListenerRun                bool
+	SessionDebug                  bool
 }
 
 type LoggersConf struct {
@@ -53,9 +54,11 @@ type LoggersConf struct {
 }
 
 type loggerConf struct {
-	Id          int
-	LogLevel    string // DEBUG, INFO, etc...
-	Destination string
+	Id           int
+	LogLevel     string // DEBUG, INFO, etc...
+	Destination  string
+	RpcLogLevel  string // rpcListener has it's own log level definitions so we can switch on debug in rpc, but not in the main code
+	SessionDebug bool
 	// udp://1.2.3.4:389, tcp://logger.example.com:1234, devlog, stdout, stderr
 	// as such, we support syslog via tcp and udp, direct-to-file logging, /dev/log, stdout, stderr
 	// and array of these can be specified! This basically means we can configure more than one destination and loglevel

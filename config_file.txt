@@ -27,6 +27,7 @@ SessionExpireSeconds=3600
 SessionCleanerIntervalSeconds=10
 SessionCleanerRun=true
 RpcListenerRun=true
+SessionDebug=false
 
 [Website]
 Name="Some Website Name"
@@ -34,17 +35,21 @@ Name="Some Website Name"
 ######### LOGGERS #########
 
 [[Logger]]
-LogLevel="DEBUG"
+LogLevel="INFO"
+RpcLogLevel="DEBUG"
 Destination="stdout"
 
 # [[Logger]]
-# LogLevel="INFO"
+# LogLevel="DEBUG"
+# RpcLogLevel="DEBUG"
 # Destination="devlog"
 
 # [[Logger]]
 # LogLevel="ERROR"
+# RpcLogLevel="ERROR"
 # Destination="stderr"
 
 # [[Logger]]
 # LogLevel="INFO"
+# RpcLogLevel="INFO"
 # Destination="udp://127.0.0.1:11514"

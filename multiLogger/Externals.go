@@ -2,6 +2,7 @@ package multiLogger
 
 import (
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -25,6 +26,11 @@ func (l *LogHandler) Critical(m string) {
 	l.dispatch(LEVEL_CRITICAL, m)
 }
 
+func (l *LogHandler) Fatal(m string) {
+	l.dispatch(LEVEL_CRITICAL, m)
+	os.Exit(1)
+}
+
 func (l *LogHandler) dispatch(logLevel int, m string) {
 	var mm string
 	if logLevel == LEVEL_DEBUG {
@@ -40,7 +46,8 @@ func (l *LogHandler) dispatch(logLevel int, m string) {
 	}
 	mm = fmt.Sprintf("%s %s[%d]: %s", time.Now().UTC().Format("Jan 02 15:04:05-0700"), l.ServiceName, l.pid, mm)
 	for i := 0; i < len(l.Dispatchers); i++ {
-		if l.Dispatchers[i].LogLevel >= logLevel {
+		if (l.Dispatchers[i].LogLevel >= logLevel && l.Header != LOGHEADER_RPCWEB) ||
+			(l.Dispatchers[i].RpcLogLevel >= logLevel && l.Header == LOGHEADER_RPCWEB) {
 			if l.Dispatchers[i].SysLog != nil {
 				if logLevel == LEVEL_DEBUG {
 					l.Dispatchers[i].SysLog.Debug(mm)

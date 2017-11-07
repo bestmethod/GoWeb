@@ -9,14 +9,14 @@ import (
 func (conf *Config) FromFile(ConfigFile string) {
 	// get all configs apart from Loggers
 	if conf.EarlyDebug == true {
-		fmt.Println("LOADCONFIG:FROMFILE: DEBUG Loading main configuration parts")
+		fmt.Println(EARLY_LOAD_MAINCONF)
 	}
 	if _, err := toml.DecodeFile(ConfigFile, conf); err != nil {
 		log.Fatal(err)
 	}
 	// get logger configs
 	if conf.EarlyDebug == true {
-		fmt.Println("LOADCONFIG:FROMFILE: DEBUG Loading loggers")
+		fmt.Println(EARLY_LOAD_LOGCONF)
 	}
 	var l LoggersConf
 	if _, err := toml.DecodeFile(ConfigFile, &l); err != nil {
@@ -27,7 +27,7 @@ func (conf *Config) FromFile(ConfigFile string) {
 
 func Load(fn string, early bool) (conf *Config) {
 	if early == true {
-		fmt.Println("LOADCONFIG: DEBUG Initializing config structure")
+		fmt.Println(EARLY_INIT_CONFSTRUCT)
 	}
 	conf = new(Config)
 	conf.General = new(generic)
@@ -35,11 +35,8 @@ func Load(fn string, early bool) (conf *Config) {
 	conf.Listener = new(RpcConf)
 	conf.EarlyDebug = early
 	if conf.EarlyDebug == true {
-		fmt.Println("LOADCONFIG: DEBUG Loading config from file")
+		fmt.Println(EARLY_LOADING_FILECONF)
 	}
 	conf.FromFile(fn)
-	if conf.EarlyDebug == true {
-		fmt.Println("LOADCONFIG: DEBUG Checking if we should load config from DB")
-	}
 	return conf
 }

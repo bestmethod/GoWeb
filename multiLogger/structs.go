@@ -18,13 +18,13 @@ type LogHandler struct {
 	Header      string
 	ServiceName string
 	pid         int
-	Messages    []string
 }
 
 type destination struct {
-	SysLog   *syslog.Writer
-	Stdout   *log.Logger
-	Stderr   *log.Logger
-	File     string
-	LogLevel int
+	SysLog      *syslog.Writer
+	Stdout      *log.Logger
+	Stderr      *log.Logger
+	File        string
+	LogLevel    int
+	RpcLogLevel int
 }

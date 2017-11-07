@@ -79,7 +79,7 @@ func checkLogin(user string, pass string, Session *SessionStruct, KeepMeLoggedIn
 		logger.Error(fmt.Sprintf("Could not login user in the DB: %s\n", err))
 		res = false
 	} else if err != nil {
-		logger.Debug("User does not exist")
+		//user does not exist
 		res = false
 	} else {
 		Session.UserId = User.UserId

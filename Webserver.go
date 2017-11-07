@@ -3,20 +3,19 @@ package main
 import (
 	"./configurator"
 	"./multiLogger"
+	"./rpcDb"
 	"./rpcListener"
 	"database/sql"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"log"
 	"os"
 	"time"
 )
 
-//TODO: move ALL messages out of Webserver.go, logger and configurator to LogMessages constants
-//TODO: add proper debug messages to rpcListener
-
 func main() {
 	// check if arg with config file was provided
-	fmt.Println("MAIN: Processing command line parameters")
+	fmt.Println(multiLogger.EARLY_LOADING_ARGS)
 	if len(os.Args) < 2 {
 		log.Fatalf(multiLogger.EARLY_ARGS_FAIL, os.Args[0])
 	}
@@ -38,19 +37,21 @@ func main() {
 		log.Fatalf(multiLogger.EARLY_ARGS_FAIL, os.Args[0])
 	}
 	if earlyDebug == true {
-		fmt.Printf("MAIN: DEBUG Early Debug enabled\nMAIN: DEBUG Conf file: %s\n", cfile)
+		fmt.Printf(multiLogger.EARLY_DEBUG_ON, cfile)
 	}
-	fmt.Println("MAIN: Loading configuration")
+	fmt.Println(multiLogger.EARLY_LOADING_CONF)
 	config := configurator.Load(cfile, earlyDebug)
-	fmt.Println("MAIN: Loading logger")
+	fmt.Println(multiLogger.EARLY_LOADING_LOGGER)
 	logger := multiLogger.Init(config.Loggers, earlyDebug, config.General.ServiceName)
-	logger.Header = "MAIN"
+	logger.Header = multiLogger.LOGHEADER_MAIN
+	logger.Debug(multiLogger.LOG_CONFDUMP)
+	logger.Debug(spew.Sdump(config))
 	// inform the user to be excited
 	logger.Info(multiLogger.LOG_BASIC_LOAD_DONE)
 	startup := true
 
 	//chans for rpcWorker and sqsQueue
-	logger.Debug("Configuring channels for goroutines")
+	logger.Debug(multiLogger.LOG_CONF_CHANNELS)
 	var rpcWorker = make(chan int, 1)
 	rpcWorker <- 1
 	rpcWorkerVal := 0
@@ -61,27 +62,36 @@ func main() {
 	//so that gorotine ends up having a different name
 	newLogger := new(multiLogger.LogHandler)
 	*newLogger = *logger
-	newLogger.Header = "RPC-GOROUTINE"
+	newLogger.Header = multiLogger.LOGHEADER_RPC
 	newLogger2 := new(multiLogger.LogHandler)
 	*newLogger2 = *logger
-	newLogger2.Header = "CLEANER-GOROUTINE"
+	newLogger2.Header = multiLogger.LOGHEADER_CLEANER
+
+	//it seems that DB should have own log header, really
+	dbLogger := new(multiLogger.LogHandler)
+	*dbLogger = *logger
+	dbLogger.Header = multiLogger.LOGHEADER_DB
 
 	//get DB connection for RPC
-	logger.Info("Getting Database Connection for Rpc")
+	logger.Info(multiLogger.LOG_GETTING_DB_CONN)
 	var dbConn *sql.DB
 	defer func() {
 		dbConn.Close()
 	}()
-	dbConn = config.Database.Connect(earlyDebug)
+	var err error
+	dbConn, err = rpcDb.Connect(config.Database, dbLogger)
+	if err != nil {
+		logger.Fatal(multiLogger.LOG_GOTDBERROR)
+	}
 
-	logger.Debug("Entering main loop")
+	logger.Debug(multiLogger.LOG_ENTER_MAIN_LOOP)
 	//THE LOOP
 	for {
 
 		//handle rpc worker
 		if config.Listener.RpcListenerRun == true {
 			if config.General.DebugMainLoop == true {
-				logger.Debug("startRpc true, processing")
+				logger.Debug(multiLogger.LOG_MAINLOOP_STARTRPC)
 			}
 			if len(rpcWorker) > 0 {
 				rpcWorkerVal = <-rpcWorker
@@ -97,14 +107,14 @@ func main() {
 		//handle session cleaner
 		if config.Listener.SessionCleanerRun == true {
 			if config.General.DebugMainLoop == true {
-				logger.Debug("cleaner true, processing")
+				logger.Debug(multiLogger.LOG_MAINLOOP_STARTCLEANER)
 			}
 			if len(cleaner) > 0 {
 				cleanerVal = <-cleaner
 				if cleanerVal == 1 {
-					logger.Info("Starting session cleaner")
+					logger.Info(multiLogger.LOG_START_CLEANER)
 				} else if cleanerVal == 0 {
-					logger.Warn("Restarting session cleaner")
+					logger.Warn(multiLogger.LOG_RESTART_CLEANER)
 				}
 				go StartSessionCleaner(newLogger2, dbConn, config.Listener.SessionCleanerIntervalSeconds, cleaner)
 			}
@@ -118,7 +128,7 @@ func main() {
 
 		// sleep between probes
 		if config.General.DebugMainLoop == true {
-			logger.Debug("Sleeping in main loop")
+			logger.Debug(multiLogger.LOG_MAINLOOP_SLEEP)
 		}
 		time.Sleep(config.General.MonitorSleepSeconds * time.Second)
 	}
@@ -129,17 +139,17 @@ func StartRpcListener(logger *multiLogger.LogHandler, rpcConf *configurator.RpcC
 	defer func() {
 		r := recover()
 		if r != nil {
-			logger.Error(fmt.Sprintf("Panic captured: %s!", r))
+			logger.Error(fmt.Sprintf(multiLogger.LOG_PANIC_CAPTURED, r))
 		} else {
-			logger.Error(fmt.Sprintf("Rpc Webserver exit gracefully for some reason!"))
+			logger.Error(fmt.Sprintf(multiLogger.LOG_RPC_EXIT))
 		}
 		rpcWorker <- 0
 	}()
-	logger.Debug("Creating WebServer")
+	logger.Debug(multiLogger.LOG_CREATE_WEBSERVER)
 	ws := new(rpcListener.WebServer)
 	newLogger := new(multiLogger.LogHandler)
 	*newLogger = *logger
-	newLogger.Header = "RPC-WEBSERVER"
+	newLogger.Header = multiLogger.LOGHEADER_RPCWEB
 	ws.Logger = newLogger
 	ws.RpcConf = rpcConf
 	ws.DbConn = dbConn
@@ -150,19 +160,19 @@ func StartSessionCleaner(logger *multiLogger.LogHandler, dbConn *sql.DB, cleaner
 	defer func() {
 		r := recover()
 		if r != nil {
-			logger.Error(fmt.Sprintf("Panic captured: %s!", r))
+			logger.Error(fmt.Sprintf(multiLogger.LOG_PANIC_CAPTURED, r))
 		} else {
-			logger.Debug(fmt.Sprintf("Rpc Cleaner exit gracefully."))
+			logger.Error(fmt.Sprintf(multiLogger.LOG_CLEANER_EXIT))
 		}
 		cleaner <- 0
 	}()
 	newLogger := new(multiLogger.LogHandler)
 	*newLogger = *logger
-	newLogger.Header = "RPC-SESSIONCLEANER"
+	newLogger.Header = multiLogger.LOGHEADER_CLNSESS
 	cleanerSleepTime := time.Duration(cleanerSleep) * time.Second
 	for {
 		time.Sleep(cleanerSleepTime)
-		logger.Debug("Running Cleaner")
+		logger.Debug(multiLogger.LOG_RUNCLEAN)
 		rpcListener.SessionCleaner(logger, dbConn)
 	}
 }
