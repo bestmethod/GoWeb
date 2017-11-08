@@ -44,10 +44,14 @@ func (ws *WebServer) Serve(wc *configurator.WebConf) {
 	cookieExpires = time.Duration(ws.RpcConf.CookieLifetimeSeconds) * time.Second
 	sessionExpires = time.Duration(ws.RpcConf.SessionExpireSeconds) * time.Second
 	logger.Info(fmt.Sprintf(LOG_STARTLISTEN, ws.RpcConf.ListenIp, ws.RpcConf.ListenPort, ws.RpcConf.UseSSL))
+	var err error
 	if ws.RpcConf.UseSSL == false {
-		http.ListenAndServe(fmt.Sprintf("%s:%d", ws.RpcConf.ListenIp, ws.RpcConf.ListenPort), router)
+		err = http.ListenAndServe(fmt.Sprintf("%s:%d", ws.RpcConf.ListenIp, ws.RpcConf.ListenPort), router)
 	} else {
-		http.ListenAndServeTLS(fmt.Sprintf("%s:%d", ws.RpcConf.ListenIp, ws.RpcConf.ListenPort), ws.RpcConf.SSLCrtPath, ws.RpcConf.SSLKeyPath, router)
+		err = http.ListenAndServeTLS(fmt.Sprintf("%s:%d", ws.RpcConf.ListenIp, ws.RpcConf.ListenPort), ws.RpcConf.SSLCrtPath, ws.RpcConf.SSLKeyPath, router)
+	}
+	if err != nil {
+		panic(err)
 	}
 }
 
