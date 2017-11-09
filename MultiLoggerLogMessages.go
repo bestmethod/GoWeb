@@ -1,4 +1,4 @@
-package multiLogger
+package goweb
 
 // main
 const (

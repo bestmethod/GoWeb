@@ -9,8 +9,8 @@ import (
 
 //BUILTIN webserver basic struct with configs
 type WebServer struct {
-	Logger  *multiLogger.LogHandler
-	RpcConf *configurator.RpcConf
+	Logger  *LogHandler
+	RpcConf *RpcConf
 	DbConn  *sql.DB
 	Router  *httprouter.Router
 }

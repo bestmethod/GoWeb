@@ -15,7 +15,7 @@ import (
 	"io/ioutil"
 )
 
-func Connect(conn *configurator.DbConf, logger *multiLogger.LogHandler) (db *sql.DB, errRet error) {
+func Connect(conn *DbConf, logger *LogHandler) (db *sql.DB, errRet error) {
 	var err error
 	if conn.Type == "sqlite3" {
 		logger.Debug(LOG_SQLITE3_OPEN)

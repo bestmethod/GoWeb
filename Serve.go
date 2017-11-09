@@ -27,13 +27,13 @@ import (
 //some Globals, because we need them :/
 var cookieExpires time.Duration
 var dbConn *sql.DB
-var logger *multiLogger.LogHandler
+var logger *LogHandler
 var sessionExpires time.Duration
-var WebsiteConf *configurator.WebConf
-var rpcConf *configurator.RpcConf
+var WebsiteConf *WebConf
+var rpcConf *RpcConf
 
 //main webserver serve - set routes, global params and listen to connections
-func (ws *WebServer) Serve(wc *configurator.WebConf) {
+func (ws *WebServer) Serve(wc *WebConf) {
 	ws.Logger.Debug(LOG_CONFIG_GLOBALS)
 	dbConn = ws.DbConn
 	logger = ws.Logger

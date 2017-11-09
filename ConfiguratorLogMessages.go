@@ -1,4 +1,4 @@
-package configurator
+package goweb
 
 const (
 	//early logging lines - before logger is setup - Loader

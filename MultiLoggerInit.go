@@ -1,4 +1,4 @@
-package multiLogger
+package goweb
 
 import (
 	"../configurator"
@@ -8,7 +8,7 @@ import (
 	"os"
 )
 
-func Init(LogConf *configurator.LoggersConf, earlyDebug bool, ServiceName string) (l *LogHandler) {
+func LoggerInit(LogConf *LoggersConf, earlyDebug bool, ServiceName string) (l *LogHandler) {
 	if earlyDebug == true {
 		fmt.Println(EARLY_CREATING_HANDLER)
 	}
