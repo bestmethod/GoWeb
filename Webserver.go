@@ -1,19 +1,33 @@
-package main
+package goweb
 
 import (
 	"./configurator"
 	"./multiLogger"
-	"./rpcDb"
-	"./rpcListener"
 	"database/sql"
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
+	"github.com/julienschmidt/httprouter"
 	"log"
 	"os"
 	"time"
 )
 
-func main() {
+type Webserver struct {
+	Logger       *multiLogger.LogHandler
+	DbConn       *sql.DB
+	Config       *configurator.Config
+	rpcWorker    chan int
+	rpcWorkerVal int
+	newLogger    *multiLogger.LogHandler
+	newLogger2   *multiLogger.LogHandler
+	rpcWebLogger *multiLogger.LogHandler
+	cleaner      chan int
+	cleanerVal   int
+	startup      bool
+}
+
+func Init() *Webserver {
+	ws := new(Webserver)
 	// check if arg with config file was provided
 	fmt.Println(multiLogger.EARLY_LOADING_ARGS)
 	if len(os.Args) < 2 {
@@ -66,7 +80,10 @@ func main() {
 	newLogger2 := new(multiLogger.LogHandler)
 	*newLogger2 = *logger
 	newLogger2.Header = multiLogger.LOGHEADER_CLEANER
-
+	rpcWebLogger := new(multiLogger.LogHandler)
+	*rpcWebLogger = *logger
+	rpcWebLogger.Header = multiLogger.LOGHEADER_RPCWEB
+	ws.Logger = rpcWebLogger
 	//it seems that DB should have own log header, really
 	dbLogger := new(multiLogger.LogHandler)
 	*dbLogger = *logger
@@ -75,67 +92,77 @@ func main() {
 	//get DB connection for RPC
 	logger.Info(multiLogger.LOG_GETTING_DB_CONN)
 	var dbConn *sql.DB
-	defer func() {
-		dbConn.Close()
-	}()
 	var err error
-	dbConn, err = rpcDb.Connect(config.Database, dbLogger)
+	dbConn, err = Connect(config.Database, dbLogger)
 	if err != nil {
 		logger.Fatal(multiLogger.LOG_GOTDBERROR)
 	}
+	ws.DbConn = dbConn
+	ws.Config = config
+	ws.rpcWorker = rpcWorker
+	ws.rpcWorkerVal = rpcWorkerVal
+	ws.newLogger = newLogger
+	ws.rpcWebLogger = rpcWebLogger
+	ws.cleaner = cleaner
+	ws.cleanerVal = cleanerVal
+	ws.newLogger2 = newLogger2
+	ws.startup = startup
+	return ws
+}
 
-	logger.Debug(multiLogger.LOG_ENTER_MAIN_LOOP)
+func (ws *Webserver) Start(router *httprouter.Router) {
+	ws.Logger.Debug(multiLogger.LOG_ENTER_MAIN_LOOP)
 	//THE LOOP
 	for {
 
 		//handle rpc worker
-		if config.Listener.RpcListenerRun == true {
-			if config.General.DebugMainLoop == true {
-				logger.Debug(multiLogger.LOG_MAINLOOP_STARTRPC)
+		if ws.Config.Listener.RpcListenerRun == true {
+			if ws.Config.General.DebugMainLoop == true {
+				ws.Logger.Debug(multiLogger.LOG_MAINLOOP_STARTRPC)
 			}
-			if len(rpcWorker) > 0 {
-				rpcWorkerVal = <-rpcWorker
-				if rpcWorkerVal == 1 {
-					logger.Info(multiLogger.LOG_START_RPC)
-				} else if rpcWorkerVal == 0 {
-					logger.Warn(multiLogger.LOG_RESTART_RPC)
+			if len(ws.rpcWorker) > 0 {
+				ws.rpcWorkerVal = <-ws.rpcWorker
+				if ws.rpcWorkerVal == 1 {
+					ws.Logger.Info(multiLogger.LOG_START_RPC)
+				} else if ws.rpcWorkerVal == 0 {
+					ws.Logger.Warn(multiLogger.LOG_RESTART_RPC)
 				}
-				go StartRpcListener(newLogger, config.Listener, rpcWorker, dbConn, config.Website)
+				go StartRpcListener(ws.newLogger, ws.rpcWebLogger, ws.Config.Listener, ws.rpcWorker, ws.DbConn, ws.Config.Website, router)
 			}
 		}
 
 		//handle session cleaner
-		if config.Listener.SessionCleanerRun == true {
-			if config.General.DebugMainLoop == true {
-				logger.Debug(multiLogger.LOG_MAINLOOP_STARTCLEANER)
+		if ws.Config.Listener.SessionCleanerRun == true {
+			if ws.Config.General.DebugMainLoop == true {
+				ws.Logger.Debug(multiLogger.LOG_MAINLOOP_STARTCLEANER)
 			}
-			if len(cleaner) > 0 {
-				cleanerVal = <-cleaner
-				if cleanerVal == 1 {
-					logger.Info(multiLogger.LOG_START_CLEANER)
-				} else if cleanerVal == 0 {
-					logger.Warn(multiLogger.LOG_RESTART_CLEANER)
+			if len(ws.cleaner) > 0 {
+				ws.cleanerVal = <-ws.cleaner
+				if ws.cleanerVal == 1 {
+					ws.Logger.Info(multiLogger.LOG_START_CLEANER)
+				} else if ws.cleanerVal == 0 {
+					ws.Logger.Warn(multiLogger.LOG_RESTART_CLEANER)
 				}
-				go StartSessionCleaner(newLogger2, dbConn, config.Listener.SessionCleanerIntervalSeconds, cleaner)
+				go StartSessionCleaner(ws.newLogger2, ws.DbConn, ws.Config.Listener.SessionCleanerIntervalSeconds, ws.cleaner)
 			}
 		}
 
 		// inform the user to be happy
-		if startup == true {
-			logger.Info(multiLogger.LOG_INITIAL_DONE)
-			startup = false
+		if ws.startup == true {
+			ws.Logger.Info(multiLogger.LOG_INITIAL_DONE)
+			ws.startup = false
 		}
 
 		// sleep between probes
-		if config.General.DebugMainLoop == true {
-			logger.Debug(multiLogger.LOG_MAINLOOP_SLEEP)
+		if ws.Config.General.DebugMainLoop == true {
+			ws.Logger.Debug(multiLogger.LOG_MAINLOOP_SLEEP)
 		}
-		time.Sleep(config.General.MonitorSleepSeconds * time.Second)
+		time.Sleep(ws.Config.General.MonitorSleepSeconds * time.Second)
 	}
 	//we can use this when needed: dbConn := config.Database.Connect()
 }
 
-func StartRpcListener(logger *multiLogger.LogHandler, rpcConf *configurator.RpcConf, rpcWorker chan int, dbConn *sql.DB, webConf *configurator.WebConf) {
+func StartRpcListener(logger *multiLogger.LogHandler, newLogger *multiLogger.LogHandler, rpcConf *configurator.RpcConf, rpcWorker chan int, dbConn *sql.DB, webConf *configurator.WebConf, router *httprouter.Router) {
 	defer func() {
 		r := recover()
 		if r != nil {
@@ -146,13 +173,11 @@ func StartRpcListener(logger *multiLogger.LogHandler, rpcConf *configurator.RpcC
 		rpcWorker <- 0
 	}()
 	logger.Debug(multiLogger.LOG_CREATE_WEBSERVER)
-	ws := new(rpcListener.WebServer)
-	newLogger := new(multiLogger.LogHandler)
-	*newLogger = *logger
-	newLogger.Header = multiLogger.LOGHEADER_RPCWEB
+	ws := new(WebServer)
 	ws.Logger = newLogger
 	ws.RpcConf = rpcConf
 	ws.DbConn = dbConn
+	ws.Router = router
 	ws.Serve(webConf)
 }
 
@@ -173,6 +198,6 @@ func StartSessionCleaner(logger *multiLogger.LogHandler, dbConn *sql.DB, cleaner
 	for {
 		time.Sleep(cleanerSleepTime)
 		logger.Debug(multiLogger.LOG_RUNCLEAN)
-		rpcListener.SessionCleaner(logger, dbConn)
+		SessionCleaner(logger, dbConn)
 	}
 }

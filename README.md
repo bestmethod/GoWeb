@@ -1,92 +1,183 @@
 # GoWeb
-Website Templating Engine
+GoWeb framework provide a ncie and easy way to create a webserver. It handles configuration from a text file, sets up listener, database connections, auto-restart of goroutines and an amazing and flexible multi-destination logger. All that remains to be done is a few lines of code to start it and your own templates/handlers using the httprouter.
 
-### Stuff you should never need to edit:
+## Session handling builtin
+The builtin session handling uses session-id and session-key to ensure safe sessions without the possibility of session stealing. It also uses DB-backed sessions for horizontal scaling. It also has a builtin session cleaner, which periodically removes old sessions from the database.
 
-configurator/ -> automatically loads and parses configuration file
+`goweb.GetSession(w http.ResponseWriter, r *http.Request) *SessionStruct` <- automatically get a session (DB/Cookie based). Create new one if needed
 
-multiLogger/ -> logger on steroids, dispatches logs to multiple destinations, as specified in the configuration file
+`goweb.UpdateSession(Session *SessionStruct)` <- automatically update the session so that again there is one hour till expiry. Good to use at end of each call if you want to log user out after 1 hour or no activity on the site.
 
-rpcDb/ -> helper function to connect to DB, for calls we use meddler anyways
+`goweb.NewSession(w http.ResponseWriter, r *http.Request) *SessionStruct` <- should get called by other functions, creates a new session and cookies are set
 
-Webserver.go -> main file
+`goweb.KeepMeLoggedIn(Session *SessionStruct)` <- to be called if you want the session to expire after 20 years instead of 1 hour. Good if user selects "keep me loggee in" box.
 
-----
+## Example code using this import
+Example code can be found in this repo, using the following branches:
 
+`simpleExample` <- branch containing a simple example to build on (essentially the below)
 
-### Helper stuff:
+`loginExample` <- branch containing an example of an index (with redirect), login, register pages (all working) together with session handling.
 
-config_file.txt -> example configuration file
+## The Webserver struct
+goweb.Init() returns a Webserver struct, which contains loads of useful stuff. For most uses, the following is important:
 
-exampleDb.sqlite3 -> example database file, created using populateDb.sql schema file
+`Webserver.Logger.(Init|Debug|Warn|Error|Critical)` <- pass this function a string to be logged
 
-populateDb.sql -> sql schema file
+`Webserver.DbConn` <- an *sql.DB instance
 
-requirements.sh -> requirements file, showing all dependencies as go get commands
+`Webserver.Config.Website.Name` <- configured name of website from the configuration file
 
-----
+It is advisable to use meddler for database handling.
 
+## Example configuration file
+```
+[General]
+ServiceName="SomeServiceName"
+DebugMainLoop=false
+MonitorSleepSeconds=5
+ 
+[Database]
+# Type= sqlite3|MySQL
+Type="sqlite3"
+# can be an IP:PORT, or domain:port
+Server="./exampleDb.sqlite3"
+User="None"
+Password="None"
+DbName="None"
+UseTLS=false
+# the below 2 are mutually exclusive (and only required if the above is true). To use ssl_ca, ensure TLSSkipVerify=false
+TLSSkipVerify=false
+# ssl_ca="/some/path"
+ 
+[Listener]
+ListenIp="0.0.0.0"
+ListenPort=8080
+UseSSL=false
+# SSLCrtPath="/some/path"
+# SSLKeyPath="/some/path"
+CookieLifetimeSeconds=315360000
+SessionExpireSeconds=3600
+SessionCleanerIntervalSeconds=10
+SessionCleanerRun=true
+RpcListenerRun=true
+SessionDebug=false
+ 
+[Website]
+Name="SomeWebsiteName"
+ 
+######### LOGGERS #########
+ 
+[[Logger]]
+LogLevel="INFO"
+RpcLogLevel="DEBUG"
+Destination="stdout"
+ 
+# [[Logger]]
+# LogLevel="DEBUG"
+# RpcLogLevel="DEBUG"
+# Destination="devlog"
+ 
+# [[Logger]]
+# LogLevel="ERROR"
+# RpcLogLevel="ERROR"
+# Destination="stderr"
+ 
+# [[Logger]]
+# LogLevel="INFO"
+# RpcLogLevel="INFO"
+# Destination="udp://127.0.0.1:11514"
+```
+## Database sql
+```
+CREATE TABLE session (
+    id INTEGER PRIMARY KEY,
+    user_id INTEGER,
+    session_id string(50),
+    session_key string(130),
+    expires INTEGER,
+    keep_logged_in bool
+);
+```
 
-### This is where you develop:
+## Other dependencies
+```
+go get github.com/BurntSushi/toml
+go get github.com/mattn/go-sqlite3
+go get github.com/russross/meddler
+go get github.com/go-sql-driver/mysql
+go get github.com/davecgh/go-spew/spew
+go get github.com/julienschmidt/httprouter
+go get github.com/leonelquinteros/gorand
+```
 
-templates/ -> all http templates that get parsed
+## Simple usage example
 
-rpcListener/ -> this is where all the actual magic happens
+#### main bits
+```
+# import the basics
+import (
+    "github.com/julienschmidt/httprouter"
+    "net/http"
+    "github.com/bestmethod/goweb"
+    "strconv"
+    "html/template"
+    "fmt"
+)
+ 
+# main func
+func main() {
+ 
+    # create a goweb instance
+    ws := goweb.Init()
+ 
+    # create a http router and add an index page
+    router := httprouter.New()
+    router.GET("/", indexFunc)
+ 
+    # start the router
+    ws.Start(router)
+}
+```
 
- BUILTINDispatcher -> router dispatcher, add your pages here, as per example
+#### indexFunc and struct - standard httprouter stuff
+```
+type index struct {
+    Username string
+    Title    *string
+    Subtitle string
+}
 
- BUILTIN* -> builtins to serve http(s), etc. Should never need to edit, apart from the Dispatcher mentioned already
+func Index(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
+    model := new(index)
+    model.Username = "Robert"
+    model.Title = ws.Config.Website.Name
+    model.Subtitle = " - Index Page!"
+    
+    t := template.New("index")
+    var err error
+    t, err = t.ParseFiles("index.html")
+    if err != nil {
+        ws.Logger.Error(fmt.Sprintf("There was an error serving page template: %s", err))
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+    }
+    err = t.Execute(w, &model)
+    if err != nil {
+        ws.Logger.Error(fmt.Sprintf("There was an error executing templates: %s", err))
+        http.Error(w, err.Error(), http.StatusInternalServerError)
+    }
+}
+```
 
- structs.go -> structs, session, user, builtin, etc. Only add new ones and edit User one. You should not touch the rest.
-
- index/login/register -> the 3 example pages created, so you can see how index can redirect to login, register can work, etc
-
-----
-
-
-### To develop pages:
-
-1. add function name to BUILTINDispatcher.go
-
-2. add file and function in the rpcListener (as per examples)
-
-3. add template in templates/ if needed (pay attention to {{define}} names)
-
-4. enjoy
-
-----
-
-
-### To run:
-
-If you want to see a LOT of debug lines, use --early-debug in parameters.
-
-DO provide configuration file name in parameter, otherwise it won't start.
-
-By default, config file will make use of exampleDb.sqlite3, so you can see it in action.
-
-----
-
-
-### Clean:
-
-It's best to put any logging lines in BUILTINLogMessage or create a LogMessages.go in rpcListener/ and put them there.
-
-See the rest of code for example. This is keeping text out of code. CLEAN!
-
-----
-
-
-### Helper variables:
-
-I will not describe it here. See index/login/register go files. They will describe it in full.
-
-----
-
-### Roadmap (what it does not do, that I wish it did):
-
-* session handler needs to allow for choice of backends, use caching DBs like aerospike with expiry builtin (no SessionCleaner)
-
-* modulize the configurator, multiLogger, rpcDb, rpcListener, Webserver basic (.go)
-
-  * so that we could just go get all this, open new file, do a few imports, run a few Init and write our templates
+#### index.html to complement the indexFunc
+```
+{{ define "index" }}
+<html><head><Title>{{.Title}}{{.Subtitle}}</Title></head>
+<body>
+<center>
+Hello, {{.Username}}!<br>
+<a href="?logout=true">Click here to logout</a>
+</center>
+</body></html
+{{ end }}
+```

@@ -1,12 +1,13 @@
-package rpcListener
+package goweb
 
 import (
-	"../configurator"
-	"../multiLogger"
+	"./configurator"
+	"./multiLogger"
+	"crypto/rand"
 	"database/sql"
+	"encoding/base64"
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/julienschmidt/httprouter"
 	"github.com/leonelquinteros/gorand"
 	"github.com/russross/meddler"
 	"net/http"
@@ -39,8 +40,7 @@ func (ws *WebServer) Serve(wc *configurator.WebConf) {
 	WebsiteConf = wc
 	rpcConf = ws.RpcConf
 	logger.Debug(LOG_ROUTER_MAKE)
-	router := httprouter.New()
-	dispatch(router)
+	router := ws.Router
 	cookieExpires = time.Duration(ws.RpcConf.CookieLifetimeSeconds) * time.Second
 	sessionExpires = time.Duration(ws.RpcConf.SessionExpireSeconds) * time.Second
 	logger.Info(fmt.Sprintf(LOG_STARTLISTEN, ws.RpcConf.ListenIp, ws.RpcConf.ListenPort, ws.RpcConf.UseSSL))
@@ -56,27 +56,31 @@ func (ws *WebServer) Serve(wc *configurator.WebConf) {
 }
 
 //helper function for endpoints - call at any point to get the session struct for a given cookie (or set the cookie)
-func getSession(w http.ResponseWriter, r *http.Request) *SessionStruct {
+func GetSession(w http.ResponseWriter, r *http.Request) *SessionStruct {
 	var sessionId *http.Cookie
+	var sessionKey *http.Cookie
 	var err error
 	var Session *SessionStruct
 	sessionId, err = r.Cookie("session-id")
+	if err == nil {
+		sessionKey, err = r.Cookie("session-key")
+	}
 	if err != nil {
 		// no cookie found
-		Session = newSession(w, r)
+		Session = NewSession(w, r)
 	} else {
 		Session = new(SessionStruct)
-		err := meddler.QueryRow(dbConn, Session, "select * from session where session_id = ?", sessionId.Value)
+		err := meddler.QueryRow(dbConn, Session, "select * from session where session_id = ? and session_key = ?", sessionId.Value, sessionKey.Value)
 		if err != nil && err.Error() != "sql: no rows in result set" {
 			logger.Error(fmt.Sprintf(LOG_DB_QUERY_FAIL, err))
-			Session = newSession(w, r)
+			Session = NewSession(w, r)
 		} else if err != nil {
 			// cookie not found in DB
-			Session = newSession(w, r)
+			Session = NewSession(w, r)
 		} else {
 			if Session.Expires < time.Now().Unix() {
 				//session expired, start new session
-				Session = newSession(w, r)
+				Session = NewSession(w, r)
 			} else {
 				var expire time.Time
 				expire = time.Now().Add(cookieExpires)
@@ -89,7 +93,7 @@ func getSession(w http.ResponseWriter, r *http.Request) *SessionStruct {
 					//session never expires
 					Session.Expires = expire.Unix()
 				}
-				updateSession(Session)
+				UpdateSession(Session)
 			}
 		}
 	}
@@ -97,23 +101,37 @@ func getSession(w http.ResponseWriter, r *http.Request) *SessionStruct {
 }
 
 //internal for getSession, no need to use otherwise
-func newSession(w http.ResponseWriter, r *http.Request) *SessionStruct {
+func NewSession(w http.ResponseWriter, r *http.Request) *SessionStruct {
 	var sessionId *http.Cookie
+	var sessionKey *http.Cookie
 	var Session *SessionStruct
 	uuid, _ := gorand.UUID()
+	expires := time.Now().Add(cookieExpires)
 	sessionId = new(http.Cookie)
 	sessionId.Name = "session-id"
 	sessionId.Value = uuid
-	expires := time.Now().Add(cookieExpires)
 	sessionId.Expires = expires
 	sessionId.Path = "/"
 	http.SetCookie(w, sessionId)
+	key := make([]byte, 64)
+	_, err := rand.Read(key)
+	if err != nil {
+		logger.Error(fmt.Sprintf(LOG_RAND_FAIL, err))
+	}
+	b64key := base64.StdEncoding.EncodeToString(key)
+	sessionKey = new(http.Cookie)
+	sessionKey.Name = "session-key"
+	sessionKey.Value = b64key
+	sessionKey.Expires = expires
+	sessionKey.Path = "/"
+	http.SetCookie(w, sessionKey)
 	Session = new(SessionStruct)
 	Session.SessionId = uuid
+	Session.SessionKey = b64key
 	Session.UserId = 0
 	Session.KeepMeLoggedIn = false
 	Session.Expires = int64(time.Now().Add(sessionExpires).Unix())
-	err := meddler.Insert(dbConn, "session", Session)
+	err = meddler.Insert(dbConn, "session", Session)
 	if err != nil {
 		logger.Error(fmt.Sprintf(LOG_DB_INSERT_FAIL, err))
 	}
@@ -125,7 +143,7 @@ func newSession(w http.ResponseWriter, r *http.Request) *SessionStruct {
 }
 
 //internal for getSession, no need to use otherwise
-func updateSession(Session *SessionStruct) {
+func UpdateSession(Session *SessionStruct) {
 	err := meddler.Update(dbConn, "session", Session)
 	if err != nil {
 		logger.Error(fmt.Sprintf(LOG_DB_UPDATE_FAIL, err))
@@ -137,7 +155,7 @@ func updateSession(Session *SessionStruct) {
 }
 
 //switch keepmeloggedin to true
-func keepMeLoggedIn(Session *SessionStruct, yesNo bool) {
+func KeepMeLoggedIn(Session *SessionStruct, yesNo bool) {
 	if yesNo == true {
 		Session.KeepMeLoggedIn = true
 		Session.Expires = time.Now().Add(cookieExpires).Unix()
@@ -145,5 +163,5 @@ func keepMeLoggedIn(Session *SessionStruct, yesNo bool) {
 		Session.KeepMeLoggedIn = false
 		Session.Expires = int64(time.Now().Add(sessionExpires).Unix())
 	}
-	updateSession(Session)
+	UpdateSession(Session)
 }

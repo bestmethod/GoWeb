@@ -1,8 +1,8 @@
-package rpcDb
+package goweb
 
 import (
-	"../configurator"
-	"../multiLogger"
+	"./configurator"
+	"./multiLogger"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"

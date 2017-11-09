@@ -1,7 +1,7 @@
-package rpcListener
+package goweb
 
 import (
-	"../multiLogger"
+	"./multiLogger"
 	"database/sql"
 	"fmt"
 	"github.com/russross/meddler"
