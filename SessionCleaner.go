@@ -1,7 +1,6 @@
 package goweb
 
 import (
-	"./multiLogger"
 	"database/sql"
 	"fmt"
 	"github.com/russross/meddler"

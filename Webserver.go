@@ -1,8 +1,6 @@
 package goweb
 
 import (
-	"./configurator"
-	"./multiLogger"
 	"database/sql"
 	"fmt"
 	"github.com/davecgh/go-spew/spew"

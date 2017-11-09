@@ -1,7 +1,6 @@
 package goweb
 
 import (
-	"../configurator"
 	"fmt"
 	"log"
 	"log/syslog"

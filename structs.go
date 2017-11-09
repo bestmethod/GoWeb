@@ -1,8 +1,6 @@
 package goweb
 
 import (
-	"./configurator"
-	"./multiLogger"
 	"database/sql"
 	"github.com/julienschmidt/httprouter"
 )

@@ -1,8 +1,6 @@
 package goweb
 
 import (
-	"./configurator"
-	"./multiLogger"
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"

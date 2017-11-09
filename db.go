@@ -1,8 +1,6 @@
 package goweb
 
 import (
-	"./configurator"
-	"./multiLogger"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
