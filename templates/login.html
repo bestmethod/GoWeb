@@ -1,0 +1,52 @@
+{{ define "login" }}
+
+{{ template "header" . }}
+<center>
+    <form method="post" action="/login">
+        <table border="0">
+            {{if .LoginFail}}
+            <tr>
+                <td>
+                    <font color="red">ERROR: Login details incorrect</font>
+                </td>
+            </tr>
+            {{end}}
+            {{if .RegisterSuccess}}
+            <tr>
+                <td>
+                    <font color="green">Account Created, login below!</font>
+                </td>
+            </tr>
+            {{end}}
+            <tr>
+                <td>
+                    <input type="text" name="username" value="{{.Username}}">
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <input type="password" name="password" value="{{.Password}}">
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <input type="checkbox" name="KeepMeLoggedIn"{{if .KeepMeLoggedIn}} checked{{end}}> Keep Me Logged In
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <input type="Submit" name="Login" value="Login">
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <a href="/register" target="_self">No account? Click here to register!</a>
+                </td>
+            </tr>
+        </table>
+    </form>
+</center>
+
+{{ template "footer" . }}
+
+{{ end }}

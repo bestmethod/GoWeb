@@ -1,48 +1,21 @@
 package main
 
 import (
-	"github.com/bestmethod/goweb"
+	"github.com/bestmethod/GoWeb"
+	"./pages"
 	"github.com/julienschmidt/httprouter"
 	"net/http"
-        "html/template"
-        "fmt"
 )
 
-var ws *goweb.Webserver
-
 func main() {
-	ws = goweb.Init()
+	ws := goweb.Init()
+	pages.Init(ws)
 	router := httprouter.New()
-	router.GET("/", Index)
+	router.GET("/", pages.Index)
+	router.GET("/login", pages.Login)
+	router.GET("/register", pages.Register)
+	router.POST("/login", pages.Login)
+	router.POST("/register", pages.Register)
+	router.ServeFiles("/images/*filepath", http.Dir("./templates/images"))
 	ws.Start(router)
 }
-
-type index struct {
-	Username string
-	Title    *string
-	Subtitle string
-}
-
-func Index(w http.ResponseWriter, r *http.Request, ps httprouter.Params) {
-	model := new(index)
-	model.Username = "Robert"
-	model.Title = ws.Config.Website.Name
-	model.Subtitle = " - You are logged in!"
-	RpcParse("index", "index.html", w, model)
-}
-
-func RpcParse(tName string, tFile string, w http.ResponseWriter, model interface{}) {
-	t := template.New(tName)
-	var err error
-	t, err = t.ParseFiles(tFile)
-	if err != nil {
-		ws.Logger.Error(fmt.Sprintf("There was an error serving page template: %s", err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-	err = t.Execute(w, &model)
-	if err != nil {
-		ws.Logger.Error(fmt.Sprintf("There was an error executing templates: %s", err))
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-}
-
