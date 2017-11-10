@@ -197,6 +197,4 @@ Hello, {{.Username}}!<br>
 ```
 
 ## TODO
-* README.md in *Example branches
-* license file
 * unit tests
