@@ -1,6 +1,20 @@
 # GoWeb
 GoWeb framework provide a ncie and easy way to create a webserver. It handles configuration from a text file, sets up listener, database connections, auto-restart of goroutines and an amazing and flexible multi-destination logger. All that remains to be done is a few lines of code to start it and your own templates/handlers using the httprouter.
 
+## Quickstart guide
+Feel free to replace `loginExample` in the git clone command with `simpleExample`
+```
+go get github.com/bestmethod/GoWeb
+cd ~
+mkdir GoWebLoginExample
+cd GoWebLoginExample
+git clone -b loginExample https://github.com/bestmethod/GoWeb.git
+cd GoWeb
+go run main.go config_file.txt
+```
+Now connect from your browser to http://127.0.0.1:8080
+
+
 ## Session handling builtin
 The builtin session handling uses session-id and session-key to ensure safe sessions without the possibility of session stealing. It also uses DB-backed sessions for horizontal scaling. It also has a builtin session cleaner, which periodically removes old sessions from the database.
 
