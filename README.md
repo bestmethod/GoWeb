@@ -1,6 +1,11 @@
 # GoWeb
 GoWeb framework provide a ncie and easy way to create a webserver. It handles configuration from a text file, sets up listener, database connections, auto-restart of goroutines and an amazing and flexible multi-destination logger. All that remains to be done is a few lines of code to start it and your own templates/handlers using the httprouter.
 
+## Author
+* Robert "iptable" Glonek
+* Best Method Limited, UK
+* github.com/bestmethod
+
 ## Quickstart guide
 Feel free to replace `loginExample` in the git clone command with `simpleExample`
 ```
